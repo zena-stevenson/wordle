@@ -1,6 +1,7 @@
-#should really oop-ify all this- a "wordle" object is an individual game, with functions that do stuff like select the right answer, connect to the database of all possible, evaluate guesses, update database after a guess, etc. 
+#a "wordle" object is an individual game, with functions that do stuff like select the right answer, connect to the database of all possible words, evaluate guesses, update database after a guess, etc. 
 
 import sqlite3
+import words_table 
 
 class Wordle:
     def __init__(self):        
@@ -8,23 +9,30 @@ class Wordle:
         self.connection = sqlite3.connect('wordle.db')
         self.cursor = self.connection.cursor()
         
-        self.answer=self.set_answer(self.cursor)
-        self.table=self.clone_table(self.cursor)
+        #check if our table of all possible words is actually populated
+        a=self.print_table(tab='all_words', print_tab=True)
+        
+        #if not, populate it
+        if len(a)==0:
+            words_table.build()
+            assert len(self.print_table(tab='all_words')) !=0, "table all_words is empty"
+            
+        self.answer=self.set_answer()
+        self.table=self.clone_table()
+        
 
     
-    def set_answer(self, cursor):
+    def set_answer(self):
         '''Eventually this will select a random word from the database to be the answer to the puzzle.
         For now we're just picking a word'''
         ans='SMALL'
         return(ans)
     
-    def clone_table(self, cursor):
+    def clone_table(self):
         '''clones table all_words so we can update the clone/ not alter the original.'''
         
-        #connection = sqlite3.connect('wordle.db')
-        #cursor = connection.cursor()
-        #cursor.execute("DROP TABLE clone;") #clears out clone table from last game
-        cursor.execute('''CREATE TABLE clone(
+        self.cursor.execute("DROP TABLE if exists clone;") #clears out clone table from last game
+        self.cursor.execute('''CREATE TABLE clone (
                     l0 char(1),
                     l1 char(1),
                     l2 char(1),
@@ -32,38 +40,40 @@ class Wordle:
                     l4 char(1)
                     ); ''')
         
-        cursor.execute("INSERT INTO clone SELECT * FROM all_words;")
-        connection.commit()
-        connection.close()
+        self.cursor.execute("INSERT INTO clone SELECT * FROM all_words;")
+        self.connection.commit()
+        #self.connection.close()
         return('clone')
     
-    def print_table(self):
-        '''prints the table of all possible valid guesses'''
-        self.cursor.execute("SELECT * FROM clone;")
+    def print_table(self, tab='clone', print_tab=False):
+        '''prints the table of all possible valid guesses. Mostly for debugging/checking stuff'''
+        self.cursor.execute("SELECT * FROM " +tab+";")
         ans=self.cursor.fetchall()
-        for a in ans:
-            print(a)
+        if print_tab:
+            print(ans)
+            #for a in ans:
+                #print(a)
+        return ans
         
-    def gray(self, letter, table, cursor): 
-        '''narrows down the word table based on a gray letter (not present in the correct answer)'''
+    def gray(self, letter, table): 
+        '''Generates a sql statement that will be used to narrow down the word table, based on a gray letter (not present in the correct answer)'''
         statement = "SELECT * FROM "+table+" WHERE '"+letter+"' NOT IN (l0, l1, l2, l3, l4)"
         return(statement)
         
 
-    def yellow(self, letter, position, table, cursor):
-        '''narrows down the word table based on a yellow letter (letter is present in the correct answer, but not in the position where we guessed it)'''
+    def yellow(self, letter, position, table):
+        '''Generates a sql statement that will be used to narrow down the word table, based on a yellow letter (letter is present in the correct answer, but not in the position where we guessed it)'''
         statement = "SELECT * FROM "+table+" WHERE "+position+" != '"+letter+"' AND '"+letter+"' IN (l0, l1, l2, l3, l4)"
         return(statement)
         
 
-    def green(self, letter, position, table, cursor):
-        '''narrows down the word table based on a green letter (letter is present and in the correct position)'''
+    def green(self, letter, position, table):
+        '''Generates a sql statement that will be used to narrow down the word table, based on a green letter (letter is present and in the correct position)'''
         statement = "SELECT * FROM "+table+" WHERE "+position+" == '"+letter+"'"
         return(statement)
     
-    def eval_guess(self, guess):
-        
-        '''compares the guessed word to the answer, and builds a sql statement to narrow down the list of next guesses letter by letter.'''
+    def eval_guess(self, guess):        
+        '''Compares the guessed word to the answer, and goes letter by letter to build a sql statement to narrow down the list of next guesses.'''
         statement = ''
         for pos, letter in enumerate(guess):
             
