@@ -23,7 +23,7 @@ class Wordle:
         
         #connection = sqlite3.connect('wordle.db')
         #cursor = connection.cursor()
-        cursor.execute("DROP TABLE clone;") #clears out clone table from last game
+        #cursor.execute("DROP TABLE clone;") #clears out clone table from last game
         cursor.execute('''CREATE TABLE clone(
                     l0 char(1),
                     l1 char(1),
