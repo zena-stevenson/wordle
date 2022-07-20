@@ -9,13 +9,13 @@ class Wordle:
         self.connection = sqlite3.connect('wordle.db')
         self.cursor = self.connection.cursor()
         
-        #check if our table of all possible words is actually populated
-        a=self.print_table(tab='all_words', print_tab=True)
+        #check if our table of all possible words actually has the words in it, before we start playing
+        a=self.print_table(tab='all_words')
         
         #if not, populate it
         if len(a)==0:
             words_table.build()
-            assert len(self.print_table(tab='all_words')) !=0, "table all_words is empty"
+            assert len(self.print_table(tab='all_words')) !=0, "failed to populate table all_words"
             
         self.answer=self.set_answer()
         self.table=self.clone_table()
